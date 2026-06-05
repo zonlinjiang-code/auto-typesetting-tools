@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
@@ -1574,7 +1574,8 @@ input[type="range"] { min-width:0; height:24px; }
 .glyph::before { inset:auto; left:50%; top:50%; width:100%; height:100%; transform:translate(-50%, -50%); }
 .glyph::after { font-weight:inherit; line-height:1; text-shadow:none; z-index:-1; }
 .glyph.selected { outline:1px solid rgba(255,182,66,.82) !important; outline-offset:4px !important; }
-.bg-image-layer { position:absolute; left:50%; top:50%; width:100%; height:100%; object-fit:cover; transform-origin:center center; pointer-events:none; user-select:none; z-index:0; }
+.bg-clip-layer { position:absolute; inset:0; overflow:hidden; pointer-events:none; user-select:none; z-index:0; }
+.bg-image-layer { position:absolute; left:50%; top:50%; width:100%; height:100%; object-fit:cover; transform-origin:center center; pointer-events:none; user-select:none; }
 .export-panel .block-heading { min-height:40px; font-size:13px; }
 .export-scale { grid-template-columns:48px 1fr; margin-bottom:10px; font-size:12px; }
 .export-size-hint { margin:-2px 0 9px; color:#7f8790; font-size:11px; font-weight:900; text-align:right; }
@@ -1812,6 +1813,280 @@ input[type="range"] { min-width:0; height:24px; }
   }
 }
 
+/* V3 editing workspace guide: visible overflow, clear artboard edge. */
+:root {
+  --workspace-bg: #f2f1ed;
+  --workspace-grid: rgba(118, 121, 114, .15);
+  --workspace-mask: rgba(242, 241, 237, .52);
+  --workspace-toggle-bg: rgba(255, 255, 255, .92);
+  --workspace-toggle-border: rgba(10, 14, 12, .12);
+  --workspace-toggle-shadow: 0 10px 24px rgba(36, 39, 34, .16);
+  --artboard-shadow: 0 16px 42px rgba(40, 42, 38, .12);
+  --sizebar-bg: rgba(255, 255, 255, .94);
+  --sizebar-border: rgba(10, 14, 12, .1);
+  --sizebar-pill-bg: #e3e4e6;
+  --sizebar-text: #070808;
+  --sizebar-muted: #070808;
+  --sizebar-shadow: 0 12px 28px rgba(36, 39, 34, .16);
+}
+
+body.workspace-dark {
+  --workspace-bg: #07090b;
+  --workspace-grid: rgba(181, 187, 193, .08);
+  --workspace-mask: rgba(7, 9, 11, .5);
+  --workspace-toggle-bg: rgba(31, 35, 41, .96);
+  --workspace-toggle-border: rgba(80, 88, 98, .46);
+  --workspace-toggle-shadow: 0 14px 32px rgba(0, 0, 0, .28);
+  --artboard-shadow: 0 18px 48px rgba(0, 0, 0, .35);
+  --sizebar-bg: rgba(20, 23, 27, .96);
+  --sizebar-border: rgba(74, 81, 91, .46);
+  --sizebar-pill-bg: #202329;
+  --sizebar-text: #f4f5f6;
+  --sizebar-muted: #a7adb5;
+  --sizebar-shadow: 0 18px 42px rgba(0, 0, 0, .28);
+}
+
+body,
+.app-shell,
+.workspace,
+.stage-scroll {
+  background-color: var(--workspace-bg) !important;
+}
+
+body {
+  background-image: none !important;
+}
+
+.controls {
+  background: var(--panel) !important;
+}
+
+.workspace,
+.stage-scroll {
+  background-image:
+    linear-gradient(var(--workspace-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--workspace-grid) 1px, transparent 1px) !important;
+  background-size: 32px 32px !important;
+  background-position: center center !important;
+}
+
+.workspace {
+  min-height: 100vh;
+}
+
+.artboard-wrap {
+  background: transparent !important;
+}
+
+.artboard {
+  position: relative;
+  z-index: 1;
+  box-shadow: var(--artboard-shadow);
+}
+
+.workspace-theme-toggle {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--workspace-toggle-border);
+  border-radius: 14px;
+  background: var(--workspace-toggle-bg);
+  box-shadow: var(--workspace-toggle-shadow);
+  cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.workspace-theme-toggle:hover {
+  transform: translateY(-1px);
+}
+
+.workspace-theme-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.theme-icon {
+  display: block;
+  position: relative;
+  width: 28px;
+  height: 28px;
+}
+
+.theme-icon-sun {
+  width: 28px;
+  height: 28px;
+}
+
+.theme-icon-sun svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.theme-icon-sun circle,
+.theme-icon-sun line {
+  stroke: #8d939b;
+}
+
+.theme-icon-sun circle {
+  fill: #8d939b;
+  stroke: none;
+}
+
+.theme-icon-sun line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  shape-rendering: geometricPrecision;
+}
+
+.theme-icon-moon {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #dfe1e2;
+}
+
+.theme-icon-moon::after {
+  content: "";
+  position: absolute;
+  top: -4px;
+  left: 7px;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  background: var(--workspace-toggle-bg);
+}
+
+body:not(.workspace-dark) .theme-icon-sun,
+body.workspace-dark .theme-icon-moon {
+  display: none;
+}
+
+.canvas-boundary-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  border: 0;
+  box-shadow: 0 0 0 9999px var(--workspace-mask);
+  pointer-events: none;
+  user-select: none;
+}
+
+.canvas-bottom-controls {
+  position: absolute;
+  left: 50%;
+  bottom: 16px !important;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: auto;
+  max-width: min(calc(100% - 36px), 720px);
+  transform: translateX(-50%);
+}
+
+.canvas-size-bar {
+  position: relative !important;
+  left: auto !important;
+  bottom: auto !important;
+  width: auto !important;
+  max-width: none !important;
+  grid-template-columns: max-content max-content 132px !important;
+  gap: 12px !important;
+  padding: 8px 12px !important;
+  border: 1px solid var(--sizebar-border) !important;
+  border-radius: 12px !important;
+  background: var(--sizebar-bg) !important;
+  box-shadow: var(--sizebar-shadow) !important;
+  transform: none !important;
+}
+
+.size-pill {
+  grid-template-columns: 22px max-content 30px !important;
+  gap: 0 !important;
+  min-height: 30px !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.size-pill span {
+  color: var(--sizebar-text) !important;
+  font-size: 12px !important;
+  font-weight: 950 !important;
+  line-height: 30px !important;
+}
+
+.size-pill input {
+  appearance: textfield;
+  -moz-appearance: textfield;
+  width: var(--size-input-w, 54px) !important;
+  height: 30px !important;
+  border-radius: 10px 0 0 10px !important;
+  background: var(--sizebar-pill-bg) !important;
+  color: var(--sizebar-text) !important;
+  text-align: center !important;
+  font-size: 13px !important;
+  font-weight: 850 !important;
+  padding: 0 6px !important;
+}
+
+.size-pill input::-webkit-outer-spin-button,
+.size-pill input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+.size-pill b {
+  display: grid !important;
+  place-items: center !important;
+  height: 30px !important;
+  border-radius: 0 10px 10px 0 !important;
+  background: var(--sizebar-pill-bg) !important;
+  color: var(--sizebar-muted) !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+}
+
+.size-preset {
+  min-height: 30px !important;
+  border-radius: 10px !important;
+  background-color: var(--sizebar-pill-bg) !important;
+  color: var(--sizebar-text) !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  padding: 0 28px 0 14px !important;
+  box-shadow: none !important;
+}
+
+@media (max-width:560px) {
+  .canvas-bottom-controls {
+    width: min(calc(100% - 20px), 390px);
+    gap: 8px;
+  }
+
+  .canvas-size-bar {
+    flex: 1 1 auto;
+    width: auto !important;
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .workspace-theme-toggle {
+    width: 44px;
+    height: 44px;
+  }
+
+  .size-preset {
+    grid-column: 1 / -1;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1820,25 +2095,41 @@ input[type="range"] { min-width:0; height:24px; }
       <div class="stage-scroll">
         <div class="artboard-wrap">
           <div id="artboard" class="artboard" aria-label="输出画布"></div>
-          <div class="canvas-size-bar" aria-label="画布尺寸">
-            <label class="size-pill">
-              <span>W</span>
-              <input id="canvasWidth" type="number" min="240" max="2400" value="900">
-              <b>px</b>
-            </label>
-            <label class="size-pill">
-              <span>H</span>
-              <input id="canvasHeight" type="number" min="240" max="2400" value="1200">
-              <b>px</b>
-            </label>
-            <select id="aspectPreset" class="size-preset">
-              <option value="custom">Custom</option>
-              <option value="16:9">HD 16:9</option>
-              <option value="1:1">Square 1:1</option>
-              <option value="4:3">4:3</option>
-              <option value="9:16">Portrait 9:16</option>
-              <option value="3:4" selected>Portrait 3:4</option>
-            </select>
+          <div class="canvas-bottom-controls" aria-label="画布底部工具">
+            <div class="canvas-size-bar" aria-label="画布尺寸">
+              <label class="size-pill">
+                <span>W</span>
+                <input id="canvasWidth" type="number" min="100" max="2400" value="900">
+                <b>px</b>
+              </label>
+              <label class="size-pill">
+                <span>H</span>
+                <input id="canvasHeight" type="number" min="100" max="2400" value="1200">
+                <b>px</b>
+              </label>
+              <select id="aspectPreset" class="size-preset">
+                <option value="custom">Custom</option>
+                <option value="16:9">HD 16:9</option>
+                <option value="1:1">Square 1:1</option>
+                <option value="4:3">4:3</option>
+                <option value="9:16">Portrait 9:16</option>
+                <option value="3:4" selected>Portrait 3:4</option>
+              </select>
+            </div>
+            <button id="workspaceThemeToggle" class="workspace-theme-toggle" type="button" aria-label="切换到深色工作区" title="切换工作区背景">
+              <span class="theme-icon theme-icon-sun" aria-hidden="true">
+                <svg viewBox="0 0 32 32" focusable="false">
+                  <circle cx="16" cy="16" r="4.4"></circle>
+                  <line x1="16" y1="5.2" x2="16" y2="8.3"></line>
+                  <line x1="16" y1="23.7" x2="16" y2="26.8"></line>
+                  <line x1="6.4" y1="10.5" x2="9.1" y2="12.1"></line>
+                  <line x1="22.9" y1="19.9" x2="25.6" y2="21.5"></line>
+                  <line x1="25.6" y1="10.5" x2="22.9" y2="12.1"></line>
+                  <line x1="9.1" y1="19.9" x2="6.4" y2="21.5"></line>
+                </svg>
+              </span>
+              <span class="theme-icon theme-icon-moon" aria-hidden="true"></span>
+            </button>
           </div>
         </div>
       </div>
@@ -1875,7 +2166,7 @@ Typesetting tools</textarea>
         <div id="fontPanel" class="block-body">
           <select id="fontFamily" class="select">
             <option value="'MiSans Lanting Pro', '小米兰亭 Pro', 'Xiaomi Lanting Pro', Inter, 'Microsoft YaHei UI', sans-serif" data-cn="'MiSans Lanting Pro', '小米兰亭 Pro', 'Xiaomi Lanting Pro', 'Microsoft YaHei UI', sans-serif" data-en="Inter, Arial, sans-serif">小米兰亭 Pro/Inter</option>
-            <option value="'Noto Sans SC', 'Noto Sans CJK SC', Helvetica, 'Helvetica Neue', Arial, sans-serif" data-cn="'Noto Sans SC', 'Noto Sans CJK SC', 'Microsoft YaHei UI', sans-serif" data-en="Helvetica, 'Helvetica Neue', Arial, sans-serif">Noto Sans/Helvetica</option>
+            <option value="'Noto Sans SC', 'Noto Sans CJK SC', Helvetica, 'Helvetica Neue', Arial, sans-serif" data-cn="'Noto Sans SC', 'Noto Sans CJK SC', 'Microsoft YaHei UI', sans-serif" data-en="Helvetica, 'Helvetica Neue', Arial, sans-serif" selected>Noto Sans/Helvetica</option>
             <option value="'Source Han Serif SC', 'Source Han Serif CN', 'Noto Serif SC', 'Noto Serif CJK SC', 'Noto Serif', Georgia, serif" data-cn="'Source Han Serif SC', 'Source Han Serif CN', 'Noto Serif SC', 'Noto Serif CJK SC', serif" data-en="'Noto Serif SC', 'Noto Serif', Georgia, serif">思源宋体/Noto Serif SC</option>
             <option value="'KaiTi', 'STKaiti', 'Segoe Print', 'Comic Sans MS', cursive" data-cn="'KaiTi', 'STKaiti', 'Microsoft YaHei UI', sans-serif" data-en="'Segoe Print', 'Comic Sans MS', cursive">手书体/Segoe Print</option>
             <option id="customFontOption" value="" hidden>自定义字体</option>
@@ -1963,7 +2254,7 @@ const defaults = {
   text: "Auto-\u81ea\u52a8\n\u6392\u7248\u5de5\u5177\nTypesetting tools",
   anchor: 1,
   free: false,
-  fontFamily: "'MiSans Lanting Pro', '小米兰亭 Pro', 'Xiaomi Lanting Pro', Inter, 'Microsoft YaHei UI', sans-serif",
+  fontFamily: "'Noto Sans SC', 'Noto Sans CJK SC', Helvetica, 'Helvetica Neue', Arial, sans-serif",
   fontWeight: 700,
   fontSlant: 0,
   customFontFamily: "",
@@ -2006,7 +2297,8 @@ const defaults = {
   cutoutEnabled: false,
   cutoutImage: "",
   vignetteEnabled: false,
-  vignetteStrength: 34
+  vignetteStrength: 34,
+  workspaceTheme: "light"
 };
 
 const anchorLabels = [
@@ -2063,6 +2355,7 @@ function undo() {
 
 const els = {
   artboard: document.getElementById("artboard"),
+  workspaceThemeToggle: document.getElementById("workspaceThemeToggle"),
   textInput: document.getElementById("textInput"),
   globalReset: document.getElementById("globalReset"),
   canvasWidth: document.getElementById("canvasWidth"),
@@ -2160,7 +2453,7 @@ function isClosingPunctuation(token) {
 }
 
 function isConnectorPunctuation(token) {
-  return /^[+\-*/\\=~_&@#%·•]$/u.test(token || "");
+  return /^[+\-‑–—*/\\=~_&@#%·•]$/u.test(token || "");
 }
 
 function isPunctuationToken(token) {
@@ -2168,7 +2461,7 @@ function isPunctuationToken(token) {
 }
 
 function isLatinWordToken(token) {
-  return /^[A-Za-z0-9]+(?:[-_'][A-Za-z0-9]+)*[-_/]?$/u.test(token || "");
+  return /^[A-Za-z0-9]+(?:'[A-Za-z0-9]+)*$/u.test(token || "");
 }
 
 function tokenKind(token) {
@@ -2199,17 +2492,13 @@ function mergeAttachedPunctuation(tokens) {
       merged[merged.length - 1] = previous + token;
       return;
     }
-    if ((token === "-" || token === "_" || token === "/" || token === "\\") && /^[A-Za-z0-9]+$/u.test(previous)) {
-      merged[merged.length - 1] = previous + token;
-      return;
-    }
     merged.push(token);
   });
   return merged;
 }
 
 function tokenizeLine(line) {
-  const raw = line.match(/ {1,}|\t+|\d+(?:\.\d+)?(?:px|pt|%)?|[A-Za-z]+(?:[-_'][A-Za-z0-9]+)*|[\u2e80-\u9fff\uf900-\ufaff]|\.{2,}|。{2,}|…{1,2}|[“”‘’"'()（）[\]{}【】《》〈〉「」『』，。；;、,.!?！？：:+\-*/\\=~_&@#%·•]|[^\s]/gu) || [];
+  const raw = line.match(/ {1,}|\t+|\d+(?:\.\d+)?(?:px|pt|%)?|[A-Za-z0-9]+(?:'[A-Za-z0-9]+)*|[\u2e80-\u9fff\uf900-\ufaff]|\.{2,}|。{2,}|…{1,2}|[“”‘’"'()（）[\]{}【】《》〈〉「」『』，。；;、,.!?！？：:+\-‑–—*/\\=~_&@#%·•]|[^\s]/gu) || [];
   const tokens = [];
   for (let i = 0; i < raw.length; i += 1) {
     let token = raw[i];
@@ -2254,8 +2543,8 @@ function randomColor() {
 
 function sanitizedCanvasSize() {
   return {
-    width: clamp(Math.round(Number(state.canvasWidth) || defaults.canvasWidth), 240, 2400),
-    height: clamp(Math.round(Number(state.canvasHeight) || defaults.canvasHeight), 240, 2400)
+    width: clamp(Math.round(Number(state.canvasWidth) || defaults.canvasWidth), 100, 2400),
+    height: clamp(Math.round(Number(state.canvasHeight) || defaults.canvasHeight), 100, 2400)
   };
 }
 
@@ -2278,8 +2567,8 @@ function updateExportSizeHint() {
 }
 
 function commitCanvasSizeInputs() {
-  const nextWidth = clamp(Math.round(Number(els.canvasWidth.value) || state.canvasWidth || defaults.canvasWidth), 240, 2400);
-  const nextHeight = clamp(Math.round(Number(els.canvasHeight.value) || state.canvasHeight || defaults.canvasHeight), 240, 2400);
+  const nextWidth = clamp(Math.round(Number(els.canvasWidth.value) || state.canvasWidth || defaults.canvasWidth), 100, 2400);
+  const nextHeight = clamp(Math.round(Number(els.canvasHeight.value) || state.canvasHeight || defaults.canvasHeight), 100, 2400);
   const changed = nextWidth !== state.canvasWidth || nextHeight !== state.canvasHeight || state.aspectPreset !== "custom";
   if (!changed) {
     syncCanvasSizeInputs(true);
@@ -2310,14 +2599,32 @@ function updateBoardSize() {
   const maxW = Math.max(280, mobile ? window.innerWidth - 32 : window.innerWidth - 430);
   const maxH = Math.max(320, mobile ? window.innerHeight - 230 : window.innerHeight - 154);
   const cap = mobile ? 620 : 920;
-  const boardW = Math.max(240, Math.min(maxW, maxH * ratio, cap));
+  const boardW = Math.max(100, Math.min(maxW, maxH * ratio, cap));
   els.artboard.style.setProperty("--board-w", `${boardW}px`);
   els.artboard.style.setProperty("--board-w-mobile", `${boardW}px`);
+}
+
+function syncCanvasSizeInputWidth(input) {
+  if (!input) return;
+  const text = String(input.value || input.placeholder || "100");
+  const digits = Math.max(3, text.length);
+  input.style.setProperty("--size-input-w", `${Math.min(74, Math.max(44, digits * 9 + 18))}px`);
 }
 
 function syncCanvasSizeInputs(force = false) {
   if (force || document.activeElement !== els.canvasWidth) els.canvasWidth.value = state.canvasWidth;
   if (force || document.activeElement !== els.canvasHeight) els.canvasHeight.value = state.canvasHeight;
+  syncCanvasSizeInputWidth(els.canvasWidth);
+  syncCanvasSizeInputWidth(els.canvasHeight);
+}
+
+function syncWorkspaceTheme() {
+  state.workspaceTheme = state.workspaceTheme === "dark" ? "dark" : "light";
+  const isDark = state.workspaceTheme === "dark";
+  document.body.classList.toggle("workspace-dark", isDark);
+  if (!els.workspaceThemeToggle) return;
+  els.workspaceThemeToggle.setAttribute("aria-label", isDark ? "切换到亮色工作区" : "切换到深色工作区");
+  els.workspaceThemeToggle.title = isDark ? "切换到亮色工作区" : "切换到深色工作区";
 }
 
 function syncFormFromState() {
@@ -2329,6 +2636,7 @@ function syncFormFromState() {
   els.lineHeightControl.value = Math.round(state.lineHeight * 100);
   els.fontSlant.value = state.fontSlant;
   syncCanvasSizeInputs();
+  syncWorkspaceTheme();
   els.aspectPreset.value = state.aspectPreset;
 }
 
@@ -2569,8 +2877,8 @@ function layoutGapBefore(row, token, spacing, size = 16) {
   const previousKind = tokenKind(previous);
   const optical = Math.max(0, Number(spacing) || 0);
   const pairGap = cjkPairOpticalGap(previous, token, unit);
-  if (previousKind === "latin" && kind === "cjk" && /[-_/\\]$/u.test(previous)) {
-    return clamp(unit * 0.045 + optical * 0.12, unit * 0.025, unit * 0.095);
+  if (isConnectorPunctuation(token) || isConnectorPunctuation(previous)) {
+    return clamp(spacing * 0.06 + optical * 0.04, -unit * 0.02, unit * 0.045);
   }
   if (kind === "punct" || previousKind === "punct" || isEllipsisToken(token) || isEllipsisToken(previous)) {
     return clamp(spacing * 0.1 + optical * 0.08 + pairGap * 0.35, -unit * 0.01, unit * 0.055);
@@ -2686,13 +2994,13 @@ function wrapTokenRows(lines, size, spacing, maxWidth) {
       if (row.length && computeRowMetrics([...row, token]).visualWidth > maxWidth) {
         trimTrailingSpaces(row);
         const last = row[row.length - 1];
-        if ((isClosingPunctuation(token) || isConnectorPunctuation(token)) && row.length) {
+        if (isClosingPunctuation(token) && row.length) {
           const previous = row.pop();
           commit(row);
           row = [previous, token];
           return;
         }
-        if ((isOpeningPunctuation(last) || isConnectorPunctuation(last)) && row.length) {
+        if (isOpeningPunctuation(last) && row.length) {
           const previous = row.pop();
           commit(row);
           row = [previous, token];
@@ -2718,7 +3026,7 @@ function layoutMetricsForSize(sourceLines, size, spacing, maxLineWidth) {
   const wrapped = wrapTokenRows(sourceLines, size, spacing, maxLineWidth);
   const rows = wrapped.rows;
   const rawRowWidths = wrapped.rowWidths;
-  const linePx = size * Math.max(state.lineHeight, 1.08);
+  const linePx = size * clamp(Number(state.lineHeight) || defaults.lineHeight, 0.82, 1.6);
   const contentH = Math.max(size, rows.length * linePx - (linePx - size));
   const maxRowWidth = Math.max(1, ...rawRowWidths);
   return { ...wrapped, contentH, maxRowWidth, linePx };
@@ -2987,6 +3295,13 @@ function appendCutoutLayer() {
   els.artboard.append(cutout);
 }
 
+function appendCanvasBoundaryLayer() {
+  const boundary = document.createElement("div");
+  boundary.className = "canvas-boundary-layer";
+  boundary.setAttribute("aria-hidden", "true");
+  els.artboard.append(boundary);
+}
+
 function draw() {
   const layout = measureLayout();
   const box = textBoxStyles();
@@ -3004,6 +3319,8 @@ function draw() {
     els.artboard.style.backgroundImage = "";
     els.artboard.style.backgroundSize = "";
     if (showImage) {
+      const bgClip = document.createElement("div");
+      bgClip.className = "bg-clip-layer";
       const bg = document.createElement("img");
       bg.className = "bg-image-layer";
       bg.alt = "";
@@ -3012,7 +3329,8 @@ function draw() {
       bg.style.top = `${50 + state.bgImageY / 2}%`;
       bg.style.transform = `translate(-50%, -50%) scale(${state.bgImageScale / 100})`;
       bg.style.filter = `brightness(${state.bgBrightness}%)`;
-      els.artboard.append(bg);
+      bgClip.append(bg);
+      els.artboard.append(bgClip);
     }
   }
   appendVignetteLayer();
@@ -3081,6 +3399,7 @@ function draw() {
     });
   });
   appendCutoutLayer();
+  appendCanvasBoundaryLayer();
   updateSelectionBounds();
 }
 
@@ -3778,7 +4097,8 @@ async function generateSubjectCutout() {
 }
 
 function resetAll() {
-  Object.assign(state, defaults);
+  const workspaceTheme = state.workspaceTheme;
+  Object.assign(state, defaults, { workspaceTheme });
   state.manual = new Map();
   if (els.bgImageInput) els.bgImageInput.value = "";
   syncFormFromState();
@@ -4078,10 +4398,18 @@ function boot() {
     resetAll();
   });
 
+  if (els.workspaceThemeToggle) {
+    els.workspaceThemeToggle.addEventListener("click", () => {
+      state.workspaceTheme = state.workspaceTheme === "dark" ? "light" : "dark";
+      syncWorkspaceTheme();
+    });
+  }
+
   [els.canvasWidth, els.canvasHeight].forEach((input) => {
     input.addEventListener("input", () => {
       state.aspectPreset = "custom";
       els.aspectPreset.value = "custom";
+      syncCanvasSizeInputWidth(input);
     });
     input.addEventListener("blur", commitCanvasSizeInputs);
     input.addEventListener("keydown", (event) => {
