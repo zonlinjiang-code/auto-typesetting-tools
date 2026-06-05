@@ -1281,12 +1281,14 @@ input[type="color"] {
 }
 
 .stroke-width-row,
-.glyph-scale-row {
+.glyph-scale-row,
+.glyph-rotate-row {
   grid-template-columns: 72px 1fr 62px;
   margin-top: 10px;
 }
 
-.glyph-scale-row input:disabled {
+.glyph-scale-row input:disabled,
+.glyph-rotate-row input:disabled {
   opacity: .45;
   cursor: default;
 }
@@ -1467,7 +1469,7 @@ input[type="color"] {
 .weight-picker { display:grid; grid-template-columns:repeat(5, minmax(0, 1fr)); gap:6px; margin-bottom:9px; }
 .weight-picker button, .text-color-action { min-width:0; height:var(--control-h); border:1px solid #2d3239; border-radius:var(--control-r); background:#202329; color:#aeb4bc; cursor:pointer; font-size:11px; font-weight:900; }
 .weight-picker button.active, .text-color-action.active { color:#ffb642; background:#39250d; border-color:rgba(240,160,24,.52); }
-.range-row, .font-range-row, .bg-image-control-row, .bg-brightness-row, .stroke-width-row, .shadow-control-row, .glyph-scale-row { grid-template-columns:var(--range-label) minmax(120px, 1fr) var(--value-w) !important; gap:10px; min-height:36px; margin-top:8px; font-size:11px; }
+.range-row, .font-range-row, .bg-image-control-row, .bg-brightness-row, .stroke-width-row, .shadow-control-row, .glyph-scale-row, .glyph-rotate-row { grid-template-columns:var(--range-label) minmax(120px, 1fr) var(--value-w) !important; gap:10px; min-height:36px; margin-top:8px; font-size:11px; }
 .range-row > span:first-child { color:#7c838b; }
 input[type="range"] { min-width:0; height:24px; }
 .number-unit { position:relative; display:block; width:var(--value-w); }
@@ -1579,7 +1581,7 @@ input[type="range"] { min-width:0; height:24px; }
 .scale-buttons button, .export-action { height:34px; font-size:12px; border-radius:7px; }
 .export-action span { font-size:14px; }
 @media (max-width:920px) {
-  .range-row, .font-range-row, .bg-image-control-row, .bg-brightness-row, .stroke-width-row, .shadow-control-row, .glyph-scale-row { grid-template-columns:82px minmax(100px, 1fr) 68px !important; }
+  .range-row, .font-range-row, .bg-image-control-row, .bg-brightness-row, .stroke-width-row, .shadow-control-row, .glyph-scale-row, .glyph-rotate-row { grid-template-columns:82px minmax(100px, 1fr) 68px !important; }
   .text-color-tools, .stroke-color-tools, .fill-color-tools, .bg-color-tools { grid-template-columns:70px minmax(0, 1fr) 84px !important; }
 }
 
@@ -1651,6 +1653,7 @@ input[type="range"] { min-width:0; height:24px; }
   min-width: 0 !important;
   max-width: none !important;
   max-height: calc(100vh - 154px);
+  overflow: visible !important;
   touch-action: none;
 }
 
@@ -1886,7 +1889,8 @@ Typesetting tools</textarea>
           <label class="range-row font-range-row"><span>Spacing 间距</span><input id="spacingControl" type="range" min="-10" max="90" value="23"><span class="number-unit"><input id="spacingValue" class="number-pill" type="number" min="-10" max="90" value="23" step="1"><b>px</b></span></label>
           <label class="range-row font-range-row"><span>Height 行距</span><input id="lineHeightControl" type="range" min="70" max="160" value="112"><span class="number-unit"><input id="lineHeightValue" class="number-pill" type="number" min="70" max="160" value="112" step="1"><b>px</b></span></label>
           <label class="range-row font-range-row font-slant-row"><span>Slant 倾斜</span><input id="fontSlant" type="range" min="-15" max="15" value="0" step="1"><span class="number-unit"><input id="fontSlantValue" class="number-pill" type="number" min="-15" max="15" value="0" step="1"><b>°</b></span></label>
-          <label class="range-row font-range-row glyph-scale-row"><span>Scaling 单字缩放</span><input id="glyphScale" type="range" min="10" max="500" value="100" step="1" disabled><span class="number-unit"><input id="glyphScaleNumber" class="number-pill" type="number" min="10" max="500" value="100" step="1" disabled><b>%</b></span></label>
+          <label class="range-row font-range-row glyph-scale-row"><span>Scaling 自由缩放</span><input id="glyphScale" type="range" min="10" max="500" value="100" step="1" disabled><span class="number-unit"><input id="glyphScaleNumber" class="number-pill" type="number" min="10" max="500" value="100" step="1" disabled><b>%</b></span></label>
+          <label class="range-row font-range-row glyph-rotate-row"><span>Rotate 旋转</span><input id="glyphRotate" type="range" min="-180" max="180" value="0" step="1" disabled><span class="number-unit"><input id="glyphRotateNumber" class="number-pill" type="number" min="-180" max="180" value="0" step="1" disabled><b>°</b></span></label>
         </div>
       </section>
       <section class="panel-block">
@@ -2128,6 +2132,8 @@ const els = {
   fillRandom: document.getElementById("fillRandom"),
   glyphScale: document.getElementById("glyphScale"),
   glyphScaleNumber: document.getElementById("glyphScaleNumber"),
+  glyphRotate: document.getElementById("glyphRotate"),
+  glyphRotateNumber: document.getElementById("glyphRotateNumber"),
   fillColor: document.getElementById("fillColor"),
   fillHex: document.getElementById("fillHex"),
   scalePicker: document.getElementById("scalePicker"),
@@ -2488,9 +2494,10 @@ function syncColorIcons() {
   syncAutoMatchButton();
 }
 
-function glyphTransform(extra = "") {
+function glyphTransform(extra = "", rotate = 0) {
   const slant = renderSlant();
-  return [`skewX(${slant}deg)`, extra].filter(Boolean).join(" ");
+  const rotation = clamp(Number(rotate) || 0, -180, 180);
+  return [`rotate(${rotation}deg)`, `skewX(${slant}deg)`, extra].filter(Boolean).join(" ");
 }
 
 function renderSlant() {
@@ -2498,11 +2505,13 @@ function renderSlant() {
   return slant;
 }
 
-function applyCanvasTextSlant(ctx, cx, cy) {
+function applyCanvasGlyphTransform(ctx, cx, cy, rotate = 0) {
+  const rotation = clamp(Number(rotate) || 0, -180, 180);
   const slant = renderSlant();
-  if (!slant) return;
+  if (!rotation && !slant) return;
   ctx.translate(cx, cy);
-  ctx.transform(1, 0, Math.tan((slant * Math.PI) / 180), 1, 0, 0);
+  if (rotation) ctx.rotate((rotation * Math.PI) / 180);
+  if (slant) ctx.transform(1, 0, Math.tan((slant * Math.PI) / 180), 1, 0, 0);
   ctx.translate(-cx, -cy);
 }
 
@@ -2870,7 +2879,8 @@ function ensureGlyphManual(glyph) {
     ...current,
     x: current.x ?? parseFloat(glyph.style.left),
     y: current.y ?? parseFloat(glyph.style.top),
-    scale: current.scale ?? (Number(glyph.dataset.scale) || 1)
+    scale: current.scale ?? (Number(glyph.dataset.scale) || 1),
+    rotate: current.rotate ?? (Number(glyph.dataset.rotate) || 0)
   };
   state.manual.set(id, next);
   return next;
@@ -2898,11 +2908,45 @@ function toggleGlyphSelection(glyph) {
 }
 
 function glyphIntersectsRect(glyph, rect) {
+  const bounds = glyphBounds(glyph);
+  const left = bounds.left;
+  const top = bounds.top;
+  const right = bounds.right;
+  const bottom = bounds.bottom;
+  return right >= rect.left && left <= rect.right && bottom >= rect.top && top <= rect.bottom;
+}
+
+function glyphBounds(glyph) {
   const left = parseFloat(glyph.style.left);
   const top = parseFloat(glyph.style.top);
-  const right = left + glyph.offsetWidth;
-  const bottom = top + glyph.offsetHeight;
-  return right >= rect.left && left <= rect.right && bottom >= rect.top && top <= rect.bottom;
+  const width = glyph.offsetWidth;
+  const height = glyph.offsetHeight;
+  const rotate = clamp(Number(glyph.dataset.rotate) || 0, -180, 180);
+  if (!rotate) return { left, top, right: left + width, bottom: top + height };
+  const cx = left + width / 2;
+  const cy = top + height / 2;
+  const angle = (rotate * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  const corners = [
+    [left, top],
+    [left + width, top],
+    [left + width, top + height],
+    [left, top + height]
+  ].map(([x, y]) => {
+    const dx = x - cx;
+    const dy = y - cy;
+    return {
+      x: cx + dx * cos - dy * sin,
+      y: cy + dx * sin + dy * cos
+    };
+  });
+  return {
+    left: Math.min(...corners.map((point) => point.x)),
+    top: Math.min(...corners.map((point) => point.y)),
+    right: Math.max(...corners.map((point) => point.x)),
+    bottom: Math.max(...corners.map((point) => point.y))
+  };
 }
 
 function updateSelectionBounds() {
@@ -2911,17 +2955,12 @@ function updateSelectionBounds() {
     .map((id) => els.artboard.querySelector(`.glyph[data-id="${id}"]`))
     .filter(Boolean);
   if (!glyphs.length) return;
-  const rects = glyphs.map((glyph) => ({
-    left: parseFloat(glyph.style.left),
-    top: parseFloat(glyph.style.top),
-    right: parseFloat(glyph.style.left) + glyph.offsetWidth,
-    bottom: parseFloat(glyph.style.top) + glyph.offsetHeight
-  }));
+  const rects = glyphs.map(glyphBounds);
   const pad = 8;
-  const left = Math.max(0, Math.min(...rects.map((rect) => rect.left)) - pad);
-  const top = Math.max(0, Math.min(...rects.map((rect) => rect.top)) - pad);
-  const right = Math.min(els.artboard.clientWidth, Math.max(...rects.map((rect) => rect.right)) + pad);
-  const bottom = Math.min(els.artboard.clientHeight, Math.max(...rects.map((rect) => rect.bottom)) + pad);
+  const left = Math.min(...rects.map((rect) => rect.left)) - pad;
+  const top = Math.min(...rects.map((rect) => rect.top)) - pad;
+  const right = Math.max(...rects.map((rect) => rect.right)) + pad;
+  const bottom = Math.max(...rects.map((rect) => rect.bottom)) + pad;
   const bounds = document.createElement("div");
   bounds.className = "selection-bounds";
   bounds.style.left = `${left}px`;
@@ -2991,6 +3030,7 @@ function draw() {
       const id = String(index);
       const manual = state.manual.get(id);
       const scale = manual?.scale ?? 1;
+      const rotate = manual?.rotate ?? 0;
       const glyphSize = layout.renderSize * rowScale * scale;
       const glyphFamily = fontFamilyForChar(token);
       const glyphBox = measureGlyphBox(token, glyphSize, glyphFamily);
@@ -3004,6 +3044,7 @@ function draw() {
       glyph.dataset.id = id;
       glyph.dataset.char = token;
       glyph.dataset.scale = String(scale);
+      glyph.dataset.rotate = String(rotate);
       glyph.style.left = `${x}px`;
       glyph.style.top = `${y}px`;
       glyph.style.fontSize = `${glyphSize}px`;
@@ -3024,9 +3065,9 @@ function draw() {
       if (state.live) {
         const wave = Math.sin(state.tick / 12 + index * 0.75);
         const skew = Math.cos(state.tick / 15 + index * 0.37) * 7;
-        glyph.style.transform = glyphTransform(`translateY(${wave * 5}px) skewX(${skew}deg) scale(${1 + wave * 0.045})`);
+        glyph.style.transform = glyphTransform(`translateY(${wave * 5}px) skewX(${skew}deg) scale(${1 + wave * 0.045})`, rotate);
       } else {
-        glyph.style.transform = glyphTransform();
+        glyph.style.transform = glyphTransform("", rotate);
       }
       if (!glyph.classList.contains("space-glyph")) {
         glyph.addEventListener("pointerdown", startDrag);
@@ -3047,31 +3088,115 @@ function selectGlyph(glyph) {
   setSelection([glyph.dataset.id], false);
 }
 
+function selectedGlyphItems(ids = getSelectedGlyphIds()) {
+  return ids.map((id) => {
+    const glyph = els.artboard.querySelector(`.glyph[data-id="${id}"]`);
+    const current = glyph ? ensureGlyphManual(glyph) : state.manual.get(id);
+    if (!glyph || !current) return null;
+    return {
+      id,
+      glyph,
+      current,
+      left: Number(current.x),
+      top: Number(current.y),
+      width: glyph.offsetWidth,
+      height: glyph.offsetHeight,
+      scale: Number(current.scale ?? glyph.dataset.scale) || 1,
+      rotate: Number(current.rotate ?? glyph.dataset.rotate) || 0,
+      centerX: Number(current.x) + glyph.offsetWidth / 2,
+      centerY: Number(current.y) + glyph.offsetHeight / 2
+    };
+  }).filter(Boolean);
+}
+
+function selectionCenter(items) {
+  const rects = items.map((item) => glyphBounds(item.glyph));
+  return {
+    x: (Math.min(...rects.map((rect) => rect.left)) + Math.max(...rects.map((rect) => rect.right))) / 2,
+    y: (Math.min(...rects.map((rect) => rect.top)) + Math.max(...rects.map((rect) => rect.bottom))) / 2
+  };
+}
+
+function normalizeDegrees(value) {
+  const normalized = ((Number(value) + 180) % 360 + 360) % 360 - 180;
+  return Object.is(normalized, -0) ? 0 : normalized;
+}
+
 function setSelectedGlyphScale(percent) {
   const nextScale = clamp(percent / 100, 0.1, 5);
   const ids = getSelectedGlyphIds();
   if (!ids.length) return;
-  ids.forEach((id) => {
-    const glyph = els.artboard.querySelector(`.glyph[data-id="${id}"]`);
-    const current = glyph ? ensureGlyphManual(glyph) : state.manual.get(id);
-    if (!current || !glyph) return;
-    const oldScale = Number(glyph.dataset.scale) || current.scale || 1;
-    const baseSize = parseFloat(glyph.style.fontSize) / oldScale;
-    const centerX = current.x + glyph.offsetWidth / 2;
-    const centerY = current.y + glyph.offsetHeight / 2;
-    const nextBox = measureGlyphBox(glyph.dataset.char, baseSize * nextScale, fontFamilyForChar(glyph.dataset.char));
-    state.manual.set(id, {
-      ...current,
-      x: centerX - nextBox.width / 2,
-      y: centerY - nextBox.height / 2,
+  const items = selectedGlyphItems(ids);
+  if (!items.length) return;
+  if (items.length === 1) {
+    const item = items[0];
+    const baseSize = parseFloat(item.glyph.style.fontSize) / item.scale;
+    const nextBox = measureGlyphBox(item.glyph.dataset.char, baseSize * nextScale, fontFamilyForChar(item.glyph.dataset.char));
+    state.manual.set(item.id, {
+      ...item.current,
+      x: item.centerX - nextBox.width / 2,
+      y: item.centerY - nextBox.height / 2,
       scale: nextScale
     });
-  });
+  } else {
+    const center = selectionCenter(items);
+    const currentAverage = items.reduce((total, item) => total + item.scale, 0) / items.length || 1;
+    const ratio = nextScale / currentAverage;
+    items.forEach((item) => {
+      const nextCenterX = center.x + (item.centerX - center.x) * ratio;
+      const nextCenterY = center.y + (item.centerY - center.y) * ratio;
+      state.manual.set(item.id, {
+        ...item.current,
+        x: nextCenterX - (item.width * ratio) / 2,
+        y: nextCenterY - (item.height * ratio) / 2,
+        scale: item.scale * ratio
+      });
+    });
+  }
   state.free = true;
   syncValues();
   syncButtons();
   draw();
 }
+
+function setSelectedGlyphRotation(degrees) {
+  const nextRotate = clamp(Number(degrees) || 0, -180, 180);
+  const ids = getSelectedGlyphIds();
+  if (!ids.length) return;
+  const items = selectedGlyphItems(ids);
+  if (!items.length) return;
+  if (items.length === 1) {
+    const item = items[0];
+    state.manual.set(item.id, {
+      ...item.current,
+      rotate: nextRotate
+    });
+  } else {
+    const currentAverage = items.reduce((total, item) => total + item.rotate, 0) / items.length || 0;
+    const delta = nextRotate - currentAverage;
+    const center = selectionCenter(items);
+    const angle = (delta * Math.PI) / 180;
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    items.forEach((item) => {
+      const dx = item.centerX - center.x;
+      const dy = item.centerY - center.y;
+      const nextCenterX = center.x + dx * cos - dy * sin;
+      const nextCenterY = center.y + dx * sin + dy * cos;
+      state.manual.set(item.id, {
+        ...item.current,
+        x: nextCenterX - item.width / 2,
+        y: nextCenterY - item.height / 2,
+        rotate: normalizeDegrees(item.rotate + delta)
+      });
+    });
+  }
+  state.free = true;
+  syncValues();
+  syncButtons();
+  draw();
+}
+
 function resizeGlyphByWheel(event) {
   if (!event.shiftKey && !event.altKey) return;
   event.preventDefault();
@@ -3086,7 +3211,11 @@ function resizeGlyphByWheel(event) {
   if (!getSelectedGlyphIds().includes(id)) selectGlyph(glyph);
   pushHistory();
   const step = event.deltaY < 0 ? 0.06 : -0.06;
-  setSelectedGlyphScale(Math.round(clamp((current.scale || 1) + step, 0.1, 5) * 100));
+  const items = selectedGlyphItems();
+  const averageScale = items.length
+    ? items.reduce((total, item) => total + item.scale, 0) / items.length
+    : (current.scale || 1);
+  setSelectedGlyphScale(Math.round(clamp(averageScale + step, 0.1, 5) * 100));
 }
 
 function startDrag(event) {
@@ -3105,7 +3234,6 @@ function startDrag(event) {
   selectedGlyphs.forEach(ensureGlyphManual);
   selectedGlyphs.forEach((item) => item.classList.add("dragging"));
   els.artboard.querySelectorAll(".selection-bounds").forEach((item) => item.remove());
-  const board = els.artboard.getBoundingClientRect();
   const start = {
     x: event.clientX,
     y: event.clientY,
@@ -3123,18 +3251,12 @@ function startDrag(event) {
   function move(moveEvent) {
     const dx = moveEvent.clientX - start.x;
     const dy = moveEvent.clientY - start.y;
-    const minDx = Math.min(...start.items.map((item) => -item.left));
-    const maxDx = Math.min(...start.items.map((item) => board.width - item.left - item.width));
-    const minDy = Math.min(...start.items.map((item) => -item.top));
-    const maxDy = Math.min(...start.items.map((item) => board.height - item.top - item.height));
-    const nextDx = clamp(dx, minDx, maxDx);
-    const nextDy = clamp(dy, minDy, maxDy);
     start.items.forEach((item) => {
       const previous = state.manual.get(item.id) || {};
       const next = {
         ...previous,
-        x: item.left + nextDx,
-        y: item.top + nextDy
+        x: item.left + dx,
+        y: item.top + dy
       };
       state.manual.set(item.id, next);
       item.glyph.style.left = `${next.x}px`;
@@ -3250,10 +3372,17 @@ function syncValues() {
   const selectedScale = selectedManuals.length
     ? Math.round((selectedManuals.reduce((total, item) => total + (item.scale ?? 1), 0) / selectedManuals.length) * 100)
     : 100;
+  const selectedRotate = selectedManuals.length
+    ? Math.round(selectedManuals.reduce((total, item) => total + (item.rotate ?? 0), 0) / selectedManuals.length)
+    : 0;
   els.glyphScale.value = selectedScale;
   els.glyphScaleNumber.value = selectedScale;
   els.glyphScale.disabled = !selectedManuals.length;
   els.glyphScaleNumber.disabled = !selectedManuals.length;
+  els.glyphRotate.value = selectedRotate;
+  els.glyphRotateNumber.value = selectedRotate;
+  els.glyphRotate.disabled = !selectedManuals.length;
+  els.glyphRotateNumber.disabled = !selectedManuals.length;
   els.bgBrightness.value = state.bgBrightness;
   els.bgBrightnessValue.value = state.bgBrightness;
   els.bgImageScale.value = state.bgImageScale;
@@ -3786,6 +3915,7 @@ async function downloadPng() {
     const x = parseFloat(glyph.style.left);
     const y = parseFloat(glyph.style.top);
     const size = parseFloat(glyph.style.fontSize);
+    const rotate = Number(glyph.dataset.rotate) || 0;
     const family = glyph.style.fontFamily || state.fontFamily;
     const strokeWidth = state.strokeEnabled ? state.strokeWidth : 0;
     const boxW = glyph.offsetWidth;
@@ -3805,7 +3935,7 @@ async function downloadPng() {
     }
     if (shadow.enabled) {
       ctx.save();
-      applyCanvasTextSlant(ctx, cx, cy);
+      applyCanvasGlyphTransform(ctx, cx, cy, rotate);
       ctx.fillStyle = shadow.color;
       ctx.shadowColor = shadow.color;
       ctx.shadowBlur = shadow.blur;
@@ -3815,7 +3945,7 @@ async function downloadPng() {
       ctx.restore();
     }
     ctx.save();
-    applyCanvasTextSlant(ctx, cx, cy);
+    applyCanvasGlyphTransform(ctx, cx, cy, rotate);
     if (strokeWidth > 0 && state.textVisible) {
       ctx.strokeStyle = state.strokeColor;
       ctx.lineWidth = strokeWidth;
@@ -3880,6 +4010,7 @@ async function downloadSvg() {
     const x = parseFloat(glyph.style.left);
     const y = parseFloat(glyph.style.top);
     const size = parseFloat(glyph.style.fontSize);
+    const rotate = clamp(Number(glyph.dataset.rotate) || 0, -180, 180);
     const family = escapeXml(glyph.style.fontFamily || state.fontFamily);
     const fill = state.textVisible ? state.textColor : "transparent";
     const strokeWidth = state.strokeEnabled ? state.strokeWidth : 0;
@@ -3896,7 +4027,10 @@ async function downloadSvg() {
     const textBase = `x="${textX.toFixed(2)}" y="${textY.toFixed(2)}" text-anchor="start" dominant-baseline="alphabetic" font-family="${family}" font-size="${size.toFixed(2)}" font-weight="${state.fontWeight}"`;
     const shadowBase = `x="${(textX + shadow.x).toFixed(2)}" y="${(textY + shadow.y).toFixed(2)}" text-anchor="start" dominant-baseline="alphabetic" font-family="${family}" font-size="${size.toFixed(2)}" font-weight="${state.fontWeight}"`;
     const slant = renderSlant();
-    const textTransform = slant ? ` transform="translate(${cx.toFixed(2)} ${cy.toFixed(2)}) skewX(${slant}) translate(${-cx.toFixed(2)} ${-cy.toFixed(2)})"` : "";
+    const transformParts = [];
+    if (rotate) transformParts.push(`rotate(${rotate.toFixed(2)})`);
+    if (slant) transformParts.push(`skewX(${slant})`);
+    const textTransform = transformParts.length ? ` transform="translate(${cx.toFixed(2)} ${cy.toFixed(2)}) ${transformParts.join(" ")} translate(${-cx.toFixed(2)} ${-cy.toFixed(2)})"` : "";
     const shadowFilter = shadow.enabled && shadow.blur > 0 ? ` filter="url(#textShadowBlur)"` : "";
     const shadowText = shadow.enabled ? `<text ${shadowBase} fill="#000000" fill-opacity="${shadow.opacity.toFixed(3)}"${shadowFilter}>${escapeXml(glyph.textContent)}</text>` : "";
     const strokeText = strokeWidth > 0 && state.textVisible ? `<text ${textBase} fill="transparent" stroke="${escapeXml(state.strokeColor)}" stroke-width="${strokeWidth}" stroke-linejoin="round" stroke-miterlimit="2">${escapeXml(glyph.textContent)}</text>` : "";
@@ -4382,6 +4516,16 @@ function boot() {
   els.glyphScaleNumber.addEventListener("input", () => {
     pushHistory();
     setSelectedGlyphScale(clamp(Number(els.glyphScaleNumber.value) || 100, 10, 500));
+  });
+
+  els.glyphRotate.addEventListener("input", () => {
+    pushHistory();
+    setSelectedGlyphRotation(Number(els.glyphRotate.value));
+  });
+
+  els.glyphRotateNumber.addEventListener("input", () => {
+    pushHistory();
+    setSelectedGlyphRotation(clamp(Number(els.glyphRotateNumber.value) || 0, -180, 180));
   });
 
   els.scalePicker.addEventListener("click", (event) => {
